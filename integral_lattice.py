@@ -53,7 +53,7 @@ class intergral_lattice:
                 for j in range(len(target)):
                     arr_test = arr_test + i[j] * target[j]
                 arr_test = arr_test % self.disc
-                if (np.all(arr_test == 0) == False) and np.array_equiv(arr_test,arr):
+                if np.array_equiv(arr_test,arr):
                     return True
         return False
 
@@ -112,27 +112,27 @@ class intergral_lattice:
         return max_order
 
     def __quot_with(self,target):
-        expected_size = self.disc // self.__product_of_order(target)
+        expected_size = int(self.disc / self.__product_of_order(target))
         result = collections.deque()
-        test_generators = target
         for arr in self.dual_group:
-            if (np.all(arr == 0)):
+            arr_order = self.__order_of(arr)
+            if (arr_order == 1):
                 result.append(arr)
-                continue
-            if ((self.__spanned_by(arr,test_generators) == False) and (self.__order_of(arr) <= expected_size)):
-                result.append(arr)
-                test_generators.append(arr)
-            if (len(result) == expected_size):
-                break
+            elif (arr_order <= expected_size):
+                if (self.__spanned_by(arr,target) == False):
+                    if (all(self.__spanned_by(arr - term, target) == False) for term in result):
+                        result.append(arr)
+                    if (len(result) == expected_size):
+                        break
         for i in range(len(result)):
             for arr in self.dual_group:
                 order_of_i = self.__order_of(result[i])
                 if (np.all(arr == 0)):
                     continue
-                if (self.__spanned_by(arr - result[i],target)) and (self.__order_of(arr) < order_of_i):
-                    result = self.__array_replace_with(result,result[i],arr)
-        result_array = np.reshape(np.asarray(result),(-1,self.dim))
-        return result_array
+                if (self.__order_of(arr) < order_of_i):
+                    if (self.__spanned_by(arr - result[i],target) == True):
+                        result = self.__array_replace_with(result,result[i],arr)
+        return result
     
     def order_list(self,list):
         order_list = []
@@ -141,18 +141,15 @@ class intergral_lattice:
         return order_list
     
     def dual_group_generator(self):
-        max_length = max(self.__prime_list(),key=self.__prime_list().count)
-        remain_list = self.dual_group
+        remain_list = collections.deque(self.dual_group)
         genrators = collections.deque()
-        for g in range(max_length+1):
-            if (len(remain_list) != 1):
-                max_order = self.__max_order_of(remain_list)
-                for item in remain_list:
-                    if (self.__order_of(item) == max_order):
-                        if (self.__spanned_by(item,genrators) == False):
-                            genrators.append(item)
-                            remain_list = self.__quot_with(genrators)
-                            break
+        while (len(remain_list) != 1):
+            max_order = self.__max_order_of(remain_list)
+            for item in remain_list:
+                if (self.__order_of(item) == max_order):
+                    genrators.append(item)
+                    remain_list = self.__quot_with(genrators)
+                    break
         generators_array = np.reshape(np.asarray(genrators),(-1,self.dim))
         return generators_array
     
