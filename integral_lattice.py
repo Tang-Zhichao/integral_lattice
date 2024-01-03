@@ -5,10 +5,20 @@ from fractions import Fraction
 
 class intergral_lattice:
     def __init__(self,init_form):
-        self.intersection_form = init_form
-        self.dim = self.__dim()
-        self.disc = self.__disc()
-        self.dual_group= self.__dual_group()
+        try:
+            if np.array_equal(init_form, init_form.T):
+                self.intersection_form = init_form
+                self.dim = self.__dim()
+                self.disc = self.__disc()
+                self.dual_group= self.__dual_group()
+            else:
+                raise Exception
+        except:
+            print("Wrong input, not symmetirc matrix!")
+            exit()
+
+    def __positive_definite(self):
+        return np.all(np.linalg.eigvals(self.intersection_form) > 0)         
     
     def __dim(self):
         return len(self.intersection_form[0])
