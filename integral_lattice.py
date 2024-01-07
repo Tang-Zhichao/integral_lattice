@@ -57,7 +57,7 @@ class intergral_lattice:
         return False
 
     def __spanned_by(self,arr,target):
-        if (len(arr) != 0  and len(target) != 0):
+        if ((arr is not None)  and (target is not None)):
             for i in itertools.product(range(self.disc),repeat=len(target)):
                 arr_test = np.zeros(self.dim)
                 for j in range(len(target)):
