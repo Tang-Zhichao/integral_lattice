@@ -26,7 +26,7 @@ class INTEGRAL_LATTICE{
     int det;
     std::vector<group_element> group_list;
     std::vector<group_element> generator_list;
-    std::vector<std::vector<T>> sub_matirx(const int& i, const std::vector<std::vector<T>>& input_matrix){
+    const std::vector<std::vector<T>> sub_matrix(const int& i, const std::vector<std::vector<T>>& input_matrix) const{
         std::vector<std::vector<T>> result_matrix;
         for (int m = 0; m < input_matrix.size()-1; m++){
             std::vector<int> temp;
@@ -38,7 +38,7 @@ class INTEGRAL_LATTICE{
         }
         return result_matrix;
     }
-    int determinant(const std::vector<std::vector<T>>& input_matrix){
+    const int determinant(const std::vector<std::vector<T>>& input_matrix) const{
         int rank = input_matrix.size();
         int result = 0;
         if (rank == 1){
@@ -55,17 +55,19 @@ class INTEGRAL_LATTICE{
             return result;
         }else{
             for (int i = 0; i < input_matrix.size(); i++){
-                if (i % 2 == 0) result += input_matrix[0][i] * determinant(sub_matirx(i,input_matrix));
-                else            result -= input_matrix[0][i] * determinant(sub_matirx(i,input_matrix));
+                if (i % 2 == 0) result += input_matrix[0][i] * determinant(sub_matrix(i,input_matrix));
+                else            result -= input_matrix[0][i] * determinant(sub_matrix(i,input_matrix));
             }
             return result;
         }
     }
     const int the_order_of(const std::vector<T>& input_vector) const{
-        for (int i = 1; i <= std::abs(det); i++){
+        for (int i = 1; i <= abs(det); i++){
             int t = 0;
-            for (int k = 0; k < rank; k++)
-                if ((input_vector[k] * i) % det == 0) t++;
+            for (int k = 0; k < rank; k++){
+                if ((input_vector[k] * i) % det != 0) break;
+                else t++;
+            }
             if (t == rank) return i;
         }
         return 0;
@@ -82,7 +84,7 @@ class INTEGRAL_LATTICE{
     std::vector<group_element> group_list_checker(){
         int length = rank;
         int lower_bound = 0;
-        int upper_bound = det;
+        int upper_bound = abs(det);
         std::vector<group_element> result;
         result.reserve(int(std::pow(upper_bound - lower_bound,length)));
         std::vector<T> arr(length,lower_bound);
@@ -105,7 +107,7 @@ class INTEGRAL_LATTICE{
                             const std::vector<group_element>& subgroup_generators) const{
         int length = subgroup_generators.size();
         int lower_bound = 0;
-        int upper_bound = det;
+        int upper_bound = abs(det);
         std::vector<T> arr(length,lower_bound);
         int position = length-1;
         bool t;
@@ -168,6 +170,85 @@ class INTEGRAL_LATTICE{
         }
         return found_generators;
     }
+    std::vector<T> primary_sub(std::vector<std::vector<T>>& input_matrix) const{
+        int rk = input_matrix[0].size();
+        std::vector<T> result;
+        for (int i = 0; i < rk; i++){
+            std::vector<std::vector<T>> primary_sub;
+            primary_sub.reserve(i);
+            for (int j = 0; j <= i; j++){
+                std::vector<T> temp;
+                temp.reserve(i);
+                for (int k = 0; k <= i; k++) temp.push_back(input_matrix[j][k]);
+                primary_sub.push_back(temp);
+            }
+            result.push_back(determinant(primary_sub));
+        }
+        return result;
+    }
+    const bool positive_definite(std::vector<std::vector<T>>& input_matrix) const{
+        for (auto term : primary_sub(input_matrix)) if (term <= 0) return false;
+        return true;
+    }
+    std::vector<T> all_sub(std::vector<std::vector<T>>& input_matrix) const{
+        int length = input_matrix.size();
+        int lower_bound = 0;
+        int upper_bound = 2;
+        std::vector<T> result;
+        result.reserve(int(std::pow(2,length)));
+        std::vector<T> arr(length,lower_bound);
+        int position = length-1;
+        ready_flag:
+        std::vector<std::vector<T>> sub_matrix;
+        for (int i = 0; i < length; i++){
+            if (arr[i] == 0) continue;
+            std::vector<T> temp;
+            for (int j = 0; j < length; j++) if (arr[j] == 1) temp.push_back(input_matrix[i][j]);
+            sub_matrix.push_back(temp);
+        }
+        result.push_back(determinant(sub_matrix));
+        not_ready_flag:
+        arr[position] = arr[position]+1;
+        if (arr[position] != upper_bound){
+            position = length-1;
+            goto ready_flag;
+        }else{
+            arr[position] = lower_bound;
+            position--;
+            if (position != -1) goto not_ready_flag;
+            else return result;
+        }
+    }
+    const bool semi_positive_definite(std::vector<std::vector<T>>& input_matrix) const{
+        for (auto term : all_sub(input_matrix)) if (term < 0) return false;
+        return true;
+    }
+    public:
+    const bool has_root() const{
+        std::vector<std::vector<T>> test_matrix = intersection_matrix;
+        if (positive_definite(test_matrix) == false) return false;
+        int bound = abs(intersection_matrix[0][0]);
+        for (int i = 1; i < rank; i++) bound = std::max(bound,abs(intersection_matrix[i][i]));
+        int length = rank;
+        int lower_bound = -bound;
+        int upper_bound = bound+1;
+        std::vector<T> arr(length,lower_bound);
+        int position = length-1;
+        ready_flag:
+        if (quadratic_product(arr) == 2) return true;
+        not_ready_flag:
+        arr[position] = arr[position]+1;
+        if (arr[position] != upper_bound){
+            position = length-1;
+            goto ready_flag;
+        }else{
+            arr[position] = lower_bound;
+            position--;
+            if (position != -1) goto not_ready_flag;
+            else return false;
+        }
+        return false;
+    }
     public:
     INTEGRAL_LATTICE(std::initializer_list<T> input_list){
         std::vector<T> lists = input_list;
@@ -202,6 +283,61 @@ class INTEGRAL_LATTICE{
             std::cout << std::endl;
         }
     }
+    const bool operator>(const T& num) const{
+        std::vector<std::vector<T>> test_matrix;
+        for (int i = 0; i < rank; i++){
+            std::vector<T> temp;
+            for (int j = 0; j < rank; j++){
+                if (i != j) temp.push_back(intersection_matrix[i][j]);
+                else temp.push_back(intersection_matrix[i][j] - num);
+            }
+            test_matrix.push_back(temp);
+        }
+        return positive_definite(test_matrix);
+    }
+    const bool operator>=(const T& num) const{
+        std::vector<std::vector<T>> test_matrix;
+        for (int i = 0; i < rank; i++){
+            std::vector<T> temp;
+            for (int j = 0; j < rank; j++){
+                if (i != j) temp.push_back(intersection_matrix[i][j]);
+                else temp.push_back(intersection_matrix[i][j] - num);
+            }
+            test_matrix.push_back(temp);
+        }
+        return semi_positive_definite(test_matrix);
+    }
+    const bool operator<(const T& num) const{
+        std::vector<std::vector<T>> test_matrix;
+        for (int i = 0; i < rank; i++){
+            std::vector<T> temp;
+            for (int j = 0; j < rank; j++){
+                if (i != j) temp.push_back(-intersection_matrix[i][j]);
+                else temp.push_back(-intersection_matrix[i][j] + num);
+            }
+            test_matrix.push_back(temp);
+        }
+        return positive_definite(test_matrix);
+    }
+    const bool operator<=(const T& num) const{
+        std::vector<std::vector<T>> test_matrix;
+        for (int i = 0; i < rank; i++){
+            std::vector<T> temp;
+            for (int j = 0; j < rank; j++){
+                if (i != j) temp.push_back(-intersection_matrix[i][j]);
+                else temp.push_back(-intersection_matrix[i][j] + num);
+            }
+            test_matrix.push_back(temp);
+        }
+        return semi_positive_definite(test_matrix);
+    }
+    const int quadratic_product(const std::vector<T>& input_element) const{
+        int result = 0;
+        for (int i = 0; i < rank; i++){
+            for (int j = 0; j < rank; j++) result += input_element[i] * intersection_matrix[i][j] * input_element[j];
+        }
+        return result;
+    }
     void show_info(){
         std::cout << "The intersection form with the following intersection matrix" << std::endl;
         get_matrix();
@@ -223,12 +359,13 @@ class INTEGRAL_LATTICE{
 int main(){
     auto start_time = std::chrono::steady_clock::now();
 
-    // INTEGRAL_LATTICE<int> A = {2,0,0,0,0,
-    //                            0,2,0,0,0,
-    //                            0,0,2,0,0,
-    //                            0,0,0,2,0,
-    //                            0,0,0,0,2};
-    // A.show_info();
+    INTEGRAL_LATTICE<int> A = {2,0,0,0,0,
+                               0,2,0,0,0,
+                               0,0,2,0,0,
+                               0,0,0,2,0,
+                               0,0,0,0,2};
+    A.show_info();
+    std::cout << (A > -1) << (A > 1) << (A > 2) << (A >= 2) << (A < 2) << (A <= 2) << (A < 3) << std::endl;
 
     // INTEGRAL_LATTICE<int> B = {2,  0,  0, -1,  0,  0,
     //                            0,  2, -1,  0,  0,  0,
@@ -237,6 +374,9 @@ int main(){
     //                            0,  0,  0, -1,  2, -1,
     //                            0,  0,  0,  0, -1,  2};
     // B.show_info();
+    // std::cout << B.is_positive() << std::endl;
+    // std::cout << B.is_negative() << std::endl;
+    // std::cout << B.has_root() << std::endl;
 
     // INTEGRAL_LATTICE<int> C = {2,  0,  0, -1,  0,  0,  0,
     //                            0,  2, -1,  0,  0,  0,  0,
@@ -247,11 +387,22 @@ int main(){
     //                            0,  0,  0,  0,  0, -1,  2};
     // C.show_info();
 
-    int t = 5;
-    INTEGRAL_LATTICE<int> D = {3, 1, 1,
-                               1, 7, t,
-                               1, t, 13};
-    D.show_info();
+    // int t = 9;
+    // INTEGRAL_LATTICE<int> D = {3, 1, 1,
+    //                            1, 7, t,
+    //                            1, t, 13};
+    // D.show_info();
+    // std::cout << D.has_root() << std::endl;
+    // std::cout << (D < 19) << " " << (D > -1) << std::endl;
+
+    // for(int i = -9; i < 10; i++){
+    //     INTEGRAL_LATTICE<int> E = {3, 1, 1,
+    //                                1, 7, i,
+    //                                1, i, 13};
+    //     if (E.is_positive() == true && E.has_root() == false){
+    //         std::cout << i << " " << std::endl;
+    //     }
+    // }
 
     auto end_time = std::chrono::steady_clock::now();
     double duration_sec = std::chrono::duration<double>(end_time - start_time).count();
