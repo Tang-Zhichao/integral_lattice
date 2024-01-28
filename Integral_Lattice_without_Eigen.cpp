@@ -28,8 +28,10 @@ class INTEGRAL_LATTICE{
     std::vector<group_element> generator_list;
     const std::vector<std::vector<T>> sub_matrix(const int& i, const std::vector<std::vector<T>>& input_matrix) const{
         std::vector<std::vector<T>> result_matrix;
+        result_matrix.reserve(input_matrix.size()-1);
         for (int m = 0; m < input_matrix.size()-1; m++){
             std::vector<int> temp;
+            temp.reserve(input_matrix.size()-1);
             for (int n = 0; n < input_matrix.size()-1; n++){
                 if (n < i) temp.emplace_back(input_matrix[m+1][n]);
                 else       temp.emplace_back(input_matrix[m+1][n+1]);
@@ -41,11 +43,9 @@ class INTEGRAL_LATTICE{
     const int determinant(const std::vector<std::vector<T>>& input_matrix) const{
         int rank = input_matrix.size();
         int result = 0;
-        if (rank == 1){
-            return input_matrix[0][0];
-        }else if (rank == 2){
-            return input_matrix[0][0]*input_matrix[1][1] - input_matrix[0][1]*input_matrix[1][0];
-        }else if (rank == 3){
+        if (rank == 1) return input_matrix[0][0];
+        else if (rank == 2) return input_matrix[0][0]*input_matrix[1][1] - input_matrix[0][1]*input_matrix[1][0];
+        else if (rank == 3){
             result += input_matrix[0][0] * input_matrix[1][1] * input_matrix[2][2];
             result -= input_matrix[0][0] * input_matrix[2][1] * input_matrix[1][2];
             result -= input_matrix[1][0] * input_matrix[0][1] * input_matrix[2][2];
@@ -85,15 +85,17 @@ class INTEGRAL_LATTICE{
         int length = rank;
         int lower_bound = 0;
         int upper_bound = abs(det);
+        std::vector<T> steps(length,1);
         std::vector<group_element> result;
-        result.reserve(int(std::pow(upper_bound - lower_bound,length)));
+        result.reserve(abs(det));
         std::vector<T> arr(length,lower_bound);
         int position = length-1;
         ready_flag:
         if (in_integral_dual(arr)) result.emplace_back(group_element(arr,the_order_of(arr)));
+        if (result.size() == abs(det)) return result;
         not_ready_flag:
-        arr[position] = arr[position]+1;
-        if (arr[position] != upper_bound){
+        arr[position] += steps[position];
+        if (arr[position] < upper_bound){
             position = length-1;
             goto ready_flag;
         }else{
@@ -115,17 +117,17 @@ class INTEGRAL_LATTICE{
         t = true;
         std::vector<T> test_coordinates;
         test_coordinates.reserve(rank);
-            for (int i = 0; i < rank; i++) test_coordinates.push_back(a.element[i] - b.element[i]);
-            for (int j = 0; j < length; j++){
-                for (int k = 0; k < rank; k++) test_coordinates[k] = test_coordinates[k] + arr[j] * ((subgroup_generators[j].element)[k]);
+        for (int i = 0; i < rank; i++) test_coordinates.push_back(a.element[i] - b.element[i]);
+        for (int j = 0; j < length; j++){
+            for (int k = 0; k < rank; k++) test_coordinates[k] = test_coordinates[k] + arr[j] * ((subgroup_generators[j].element)[k]);
+        }
+        for (auto cood : test_coordinates){
+            if (cood % det != 0){
+                t = false;
+                break;
             }
-            for (auto cood : test_coordinates){
-                if (cood % det != 0){
-                    t = false;
-                    break;
-                }
-            }
-            if (t == true) return true;
+        }
+        if (t == true) return true;
         not_ready_flag:
         arr[position] = arr[position]+1;
         if (arr[position] != upper_bound){
@@ -145,23 +147,27 @@ class INTEGRAL_LATTICE{
         int products_of_orders = found_generators.front().order;
         while (products_of_orders < std::abs(det)){
             std::vector<group_element> result_list;
+            result_list.reserve(abs(det) / products_of_orders);
             std::vector<std::vector<group_element>> cosets;
+            cosets.reserve(abs(det) / products_of_orders);
             for (auto item : remain_list){
                 std::vector<group_element> new_coset;
                 bool coset_found = false;
                 for (auto& coset : cosets){
+                    if (coset.size() == abs(det) / products_of_orders) continue;
                     if (in_coset_with(item,coset[0],found_generators) == true){
-                        coset.push_back(item);
+                        coset.emplace_back(item);
                         coset_found = true;
                         break;
                     }
                 }
                 if (coset_found == false){
                     new_coset.push_back(item);
-                    cosets.push_back(new_coset);
+                    cosets.emplace_back(new_coset);
+                    cosets.back().reserve(products_of_orders);
                 }
             }
-            for (auto coset : cosets) result_list.push_back(*std::min_element(coset.begin(),coset.end()));
+            for (auto coset : cosets) result_list.emplace_back(*std::min_element(coset.begin(),coset.end()));
             remain_list = result_list;
             if (remain_list.size() != 1){
                 found_generators.push_back(*std::max_element(remain_list.begin(),remain_list.end()));
@@ -349,7 +355,7 @@ class INTEGRAL_LATTICE{
                 std::cout << "] with order " << i.order << std::endl;
             }
         };
-        std::cout << "whose integral dual is of the same size and with elements:" << std::endl;
+        std::cout << "whose integral dual is of the same size " << group_list.size() << " and with elements:" << std::endl;
         info_loop(group_list);
         std::cout << "A set of generators may be of size " << generator_list.size() << " with elements:" << std::endl;
         info_loop(generator_list);
@@ -359,13 +365,21 @@ class INTEGRAL_LATTICE{
 int main(){
     auto start_time = std::chrono::steady_clock::now();
 
-    INTEGRAL_LATTICE<int> A = {2,0,0,0,0,
-                               0,2,0,0,0,
-                               0,0,2,0,0,
-                               0,0,0,2,0,
-                               0,0,0,0,2};
+    INTEGRAL_LATTICE<int> A = { 2, 0, 0, 0, 0,
+                                0, 2, 0, 0, 0,
+                                0, 0, 2, 0, 0,
+                                0, 0, 0, 2, 0,
+                                0, 0, 0, 0, 2};
     A.show_info();
     std::cout << (A > -1) << (A > 1) << (A > 2) << (A >= 2) << (A < 2) << (A <= 2) << (A < 3) << std::endl;
+
+    INTEGRAL_LATTICE<int> AA = { 2, 0, 0, 0, 0, 0,
+                                 0, 2, 0, 0, 0, 0,
+                                 0, 0, 2, 0, 0, 0,
+                                 0, 0, 0, 2, 0, 0,
+                                 0, 0, 0, 0, 2, 0,
+                                 0, 0, 0, 0, 0, 2 };
+    AA.show_info();
 
     // INTEGRAL_LATTICE<int> B = {2,  0,  0, -1,  0,  0,
     //                            0,  2, -1,  0,  0,  0,
@@ -374,8 +388,8 @@ int main(){
     //                            0,  0,  0, -1,  2, -1,
     //                            0,  0,  0,  0, -1,  2};
     // B.show_info();
-    // std::cout << B.is_positive() << std::endl;
-    // std::cout << B.is_negative() << std::endl;
+    // std::cout << (B > 0) << std::endl;
+    // std::cout << (B < 0) << std::endl;
     // std::cout << B.has_root() << std::endl;
 
     // INTEGRAL_LATTICE<int> C = {2,  0,  0, -1,  0,  0,  0,
@@ -399,7 +413,7 @@ int main(){
     //     INTEGRAL_LATTICE<int> E = {3, 1, 1,
     //                                1, 7, i,
     //                                1, i, 13};
-    //     if (E.is_positive() == true && E.has_root() == false){
+    //     if ((E > 0) == true && E.has_root() == false){
     //         std::cout << i << " " << std::endl;
     //     }
     // }
