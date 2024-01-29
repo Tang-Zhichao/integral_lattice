@@ -7,6 +7,7 @@
 #include <deque>
 #include <cmath>
 #include <chrono>
+#include <numeric>
 #include <algorithm>
 #include <initializer_list>
 
@@ -86,6 +87,12 @@ class INTEGRAL_LATTICE{
         int lower_bound = 0;
         int upper_bound = abs(det);
         std::vector<T> steps(length,1);
+        for (int i = 0; i < length; i++){
+            steps[i] = intersection_matrix[i][0];
+            for (int j = 1; j < length; j++){
+                steps[i] = std::gcd(steps[i], intersection_matrix[i][j]);
+            }
+        }
         std::vector<group_element> result;
         result.reserve(abs(det));
         std::vector<T> arr(length,lower_bound);
@@ -154,7 +161,7 @@ class INTEGRAL_LATTICE{
                 std::vector<group_element> new_coset;
                 bool coset_found = false;
                 for (auto& coset : cosets){
-                    if (coset.size() == abs(det) / products_of_orders) continue;
+                    if (coset.size() == products_of_orders) continue;
                     if (in_coset_with(item,coset[0],found_generators) == true){
                         coset.emplace_back(item);
                         coset_found = true;
@@ -373,14 +380,6 @@ int main(){
     A.show_info();
     std::cout << (A > -1) << (A > 1) << (A > 2) << (A >= 2) << (A < 2) << (A <= 2) << (A < 3) << std::endl;
 
-    INTEGRAL_LATTICE<int> AA = { 2, 0, 0, 0, 0, 0,
-                                 0, 2, 0, 0, 0, 0,
-                                 0, 0, 2, 0, 0, 0,
-                                 0, 0, 0, 2, 0, 0,
-                                 0, 0, 0, 0, 2, 0,
-                                 0, 0, 0, 0, 0, 2 };
-    AA.show_info();
-
     // INTEGRAL_LATTICE<int> B = {2,  0,  0, -1,  0,  0,
     //                            0,  2, -1,  0,  0,  0,
     //                            0, -1,  2, -1,  0,  0,
@@ -417,6 +416,13 @@ int main(){
     //         std::cout << i << " " << std::endl;
     //     }
     // }
+    // INTEGRAL_LATTICE<int> F = { 2, 0, 0, 0, 0, 0,
+    //                             0, 2, 0, 0, 0, 0,
+    //                             0, 0, 2, 0, 0, 0,
+    //                             0, 0, 0, 2, 0, 0,
+    //                             0, 0, 0, 0, 2, 0,
+    //                             0, 0, 0, 0, 0, 2 };
+    // F.show_info();
 
     auto end_time = std::chrono::steady_clock::now();
     double duration_sec = std::chrono::duration<double>(end_time - start_time).count();
