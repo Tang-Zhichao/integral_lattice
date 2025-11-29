@@ -7,3 +7,5 @@ This class provides some basic invariants of the lattice such as the rank (or di
 and more complicated invariants such as the whole list of the dual lattice and the generators of the dual lattice.
 
 Rewriten in C++ which makes it much faster.
+
+A new version in Rust.
